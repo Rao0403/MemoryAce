@@ -1,0 +1,89 @@
+# Brain Games Lab
+
+A full-stack brain-game platform inspired by Human Benchmark, with a more cinematic UI and persistent player performance tracking.
+
+## Stack
+
+- Frontend: Next.js (App Router, TypeScript)
+- Backend: FastAPI (Python)
+- Database: MySQL
+
+## Included Games (Phase 1)
+
+1. Number Memory
+- Starts at 1 digit
+- Each successful round increments difficulty by 1 digit
+- On failure, score is saved
+
+2. Sequence Memory
+- 3x3 grid glow-chain memory game
+- Sequence length grows by 1 per round
+- On failure, score is saved
+
+## Data Stored
+
+Each run stores a score attempt in MySQL.
+
+Player stats are computed from attempts:
+- High score
+- Average score
+- Attempt count
+
+## Project Structure
+
+- `frontend/` Next.js app
+- `backend/` FastAPI API and SQLAlchemy models
+- `docker-compose.yml` MySQL service
+
+## Run Locally
+
+### 1) Start MySQL
+
+```bash
+docker compose up -d
+```
+
+MySQL is exposed at `localhost:3307` to avoid conflicts with any existing local MySQL on `3306`.
+
+### 2) Run Backend
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+uvicorn app.main:app --reload --port 8000
+```
+
+API base URL: `http://localhost:8000`
+
+### 3) Run Frontend
+
+```bash
+cd frontend
+npm install
+copy .env.example .env.local
+npm run dev
+```
+
+Frontend URL: `http://localhost:3000`
+
+## Current API Endpoints
+
+- `GET /api/health`
+- `POST /api/scores`
+- `GET /api/scores/{game}/{player_name}`
+- `GET /api/leaderboard/{game}`
+- `GET /api/scores/recent`
+
+Allowed game keys:
+- `number_memory`
+- `sequence_memory`
+
+## Next Additions
+
+The architecture is ready to keep adding new games while reusing:
+- score persistence
+- stats components
+- leaderboard endpoint

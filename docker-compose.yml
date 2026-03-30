@@ -1,0 +1,15 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: brain_games_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: brain_games
+    ports:
+      - "3307:3306"
+    volumes:
+      - brain_games_mysql_data:/var/lib/mysql
+
+volumes:
+  brain_games_mysql_data:
