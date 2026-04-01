@@ -33,19 +33,10 @@ Player stats are computed from attempts:
 
 - `frontend/` Next.js app
 - `backend/` FastAPI API and SQLAlchemy models
-- `docker-compose.yml` MySQL service
 
 ## Run Locally
 
-### 1) Start MySQL
-
-```bash
-docker compose up -d
-```
-
-MySQL is exposed at `localhost:3307` to avoid conflicts with any existing local MySQL on `3306`.
-
-### 2) Run Backend
+### 1) Configure and Run Backend
 
 ```bash
 cd backend
@@ -56,9 +47,17 @@ copy .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
+Set your local MySQL credentials in `backend/.env`:
+- `MYSQL_HOST`
+- `MYSQL_PORT`
+- `MYSQL_USER`
+- `MYSQL_PASSWORD`
+- `MYSQL_DATABASE`
+- `MYSQL_DRIVER` (default: `mysql+pymysql`)
+
 API base URL: `http://localhost:8000`
 
-### 3) Run Frontend
+### 2) Run Frontend
 
 ```bash
 cd frontend
