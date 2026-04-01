@@ -8,9 +8,14 @@ export function GameHeader({ title, subtitle }: { title: string; subtitle: strin
         <h1>{title}</h1>
         <p>{subtitle}</p>
       </div>
-      <Link href="/" className="btn ghost">
-        Home
-      </Link>
+      <div className="header-actions">
+        <Link href="/dashboard" className="btn ghost">
+          Dashboard
+        </Link>
+        <Link href="/" className="btn ghost">
+          Home
+        </Link>
+      </div>
     </header>
   );
 }

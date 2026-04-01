@@ -50,3 +50,17 @@ class LeaderboardRow(BaseModel):
     high_score: int
     average_score: float
     attempts: int
+
+
+class GameDashboardStats(BaseModel):
+    game: str
+    high_score: int
+    average_score: float
+    attempts: int
+
+
+class PlayerDashboardStats(BaseModel):
+    player_name: str
+    total_attempts: int
+    games_played: int
+    games: list[GameDashboardStats]

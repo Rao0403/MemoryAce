@@ -153,7 +153,7 @@ export default function SequenceMemoryPage() {
     <main className="page-wrap game-page">
       <GameHeader title="Sequence Memory" subtitle="3x3 pattern chains. Repeat perfectly." />
 
-      <section className="game-grid">
+      <section className="game-center">
         <article className="panel game-surface">
           <div className="hud-row">
             <span className="chip">Level {Math.max(1, sequence.length)}</span>
@@ -199,7 +199,7 @@ export default function SequenceMemoryPage() {
           <p className="status-line">{statusText}</p>
         </article>
 
-        <aside className="side-panel">
+        <aside className="game-meta-grid">
           <article className="panel compact">
             <p className="panel-title">Your Stats</p>
             <PersonalStats stats={stats} />

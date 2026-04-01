@@ -76,6 +76,7 @@ Frontend URL: `http://localhost:3000`
 - `GET /api/scores/{game}/{player_name}`
 - `GET /api/leaderboard/{game}`
 - `GET /api/scores/recent`
+- `GET /api/dashboard/{player_name}`
 
 Allowed game keys:
 - `number_memory`

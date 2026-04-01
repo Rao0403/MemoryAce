@@ -5,7 +5,7 @@ import Link from "next/link";
 
 const PLAYER_KEY = "bf_player_name";
 
-export function PlayerNameInput() {
+export function PlayerNameInput({ showQuickLinks = false }: { showQuickLinks?: boolean }) {
   const [name, setName] = useState("");
 
   useEffect(() => {
@@ -16,7 +16,7 @@ export function PlayerNameInput() {
   function saveName() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    window.localStorage.setItem(PLAYER_KEY, trimmed);
+    setStoredPlayerName(trimmed);
     setName(trimmed);
   }
 
@@ -36,12 +36,16 @@ export function PlayerNameInput() {
         </button>
       </div>
       <p className="muted">Used for your high score and average score in MySQL.</p>
-      <Link href="/games/number-memory" className="btn secondary">
-        Play Number Memory
-      </Link>
-      <Link href="/games/sequence-memory" className="btn ghost">
-        Play Sequence Memory
-      </Link>
+      {showQuickLinks && (
+        <>
+          <Link href="/games/number-memory" className="btn secondary">
+            Play Number Memory
+          </Link>
+          <Link href="/games/sequence-memory" className="btn ghost">
+            Play Sequence Memory
+          </Link>
+        </>
+      )}
     </div>
   );
 }
@@ -49,4 +53,9 @@ export function PlayerNameInput() {
 export function getStoredPlayerName(): string {
   if (typeof window === "undefined") return "";
   return window.localStorage.getItem(PLAYER_KEY) ?? "";
+}
+
+export function setStoredPlayerName(playerName: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(PLAYER_KEY, playerName);
 }

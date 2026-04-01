@@ -6,7 +6,15 @@ from sqlalchemy.orm import Session
 from .config import get_settings
 from .database import Base, engine, get_db
 from .models import ScoreAttempt
-from .schemas import ALLOWED_GAMES, LeaderboardRow, PlayerGameStats, ScoreCreate, ScoreRead
+from .schemas import (
+    ALLOWED_GAMES,
+    GameDashboardStats,
+    LeaderboardRow,
+    PlayerDashboardStats,
+    PlayerGameStats,
+    ScoreCreate,
+    ScoreRead,
+)
 
 settings = get_settings()
 app = FastAPI(title="Brain Games API", version="0.1.0")
@@ -134,3 +142,53 @@ def get_leaderboard(
 def get_recent_scores(limit: int = Query(default=20, ge=1, le=100), db: Session = Depends(get_db)) -> list[ScoreRead]:
     rows = db.query(ScoreAttempt).order_by(ScoreAttempt.created_at.desc()).limit(limit).all()
     return rows
+
+
+@app.get("/api/dashboard/{player_name}", response_model=PlayerDashboardStats)
+def get_player_dashboard(player_name: str, db: Session = Depends(get_db)) -> PlayerDashboardStats:
+    normalized_player = player_name.strip()
+
+    rows = (
+        db.query(
+            ScoreAttempt.game.label("game"),
+            func.max(ScoreAttempt.score).label("high_score"),
+            func.avg(ScoreAttempt.score).label("average_score"),
+            func.count(ScoreAttempt.id).label("attempts"),
+        )
+        .filter(ScoreAttempt.player_name == normalized_player)
+        .group_by(ScoreAttempt.game)
+        .all()
+    )
+
+    by_game = {
+        str(row.game): GameDashboardStats(
+            game=str(row.game),
+            high_score=int(row.high_score or 0),
+            average_score=round(float(row.average_score or 0), 2),
+            attempts=int(row.attempts or 0),
+        )
+        for row in rows
+    }
+
+    games = [
+        by_game.get(
+            game,
+            GameDashboardStats(
+                game=game,
+                high_score=0,
+                average_score=0.0,
+                attempts=0,
+            ),
+        )
+        for game in sorted(ALLOWED_GAMES)
+    ]
+
+    total_attempts = sum(game.attempts for game in games)
+    games_played = sum(1 for game in games if game.attempts > 0)
+
+    return PlayerDashboardStats(
+        player_name=normalized_player,
+        total_attempts=total_attempts,
+        games_played=games_played,
+        games=games,
+    )

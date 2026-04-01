@@ -136,7 +136,7 @@ export default function NumberMemoryPage() {
     <main className="page-wrap game-page">
       <GameHeader title="Number Memory" subtitle="Each round adds one digit. Beat your limit." />
 
-      <section className="game-grid">
+      <section className="game-center">
         <article className="panel game-surface">
           <div className="hud-row">
             <span className="chip">Level {level}</span>
@@ -190,7 +190,7 @@ export default function NumberMemoryPage() {
           <p className="status-line">{statusText}</p>
         </article>
 
-        <aside className="side-panel">
+        <aside className="game-meta-grid">
           <article className="panel compact">
             <p className="panel-title">Your Stats</p>
             <PersonalStats stats={stats} />

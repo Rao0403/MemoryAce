@@ -1,8 +1,9 @@
 import { getApiBaseUrl } from "@/lib/constants";
+import type { GameKey } from "@/lib/constants";
 
 export type PlayerGameStats = {
   player_name: string;
-  game: string;
+  game: GameKey;
   high_score: number;
   average_score: number;
   attempts: number;
@@ -15,9 +16,23 @@ export type LeaderboardRow = {
   attempts: number;
 };
 
+export type GameDashboardStats = {
+  game: GameKey;
+  high_score: number;
+  average_score: number;
+  attempts: number;
+};
+
+export type PlayerDashboardStats = {
+  player_name: string;
+  total_attempts: number;
+  games_played: number;
+  games: GameDashboardStats[];
+};
+
 export async function submitScore(params: {
   playerName: string;
-  game: "number_memory" | "sequence_memory";
+  game: GameKey;
   score: number;
 }): Promise<PlayerGameStats> {
   const response = await fetch(`${getApiBaseUrl()}/api/scores`, {
@@ -42,7 +57,7 @@ export async function submitScore(params: {
 
 export async function fetchStats(params: {
   playerName: string;
-  game: "number_memory" | "sequence_memory";
+  game: GameKey;
 }): Promise<PlayerGameStats | null> {
   const response = await fetch(
     `${getApiBaseUrl()}/api/scores/${params.game}/${encodeURIComponent(params.playerName)}`,
@@ -60,13 +75,25 @@ export async function fetchStats(params: {
   return response.json();
 }
 
-export async function fetchLeaderboard(game: "number_memory" | "sequence_memory"): Promise<LeaderboardRow[]> {
+export async function fetchLeaderboard(game: GameKey): Promise<LeaderboardRow[]> {
   const response = await fetch(`${getApiBaseUrl()}/api/leaderboard/${game}?limit=8`, {
     cache: "no-store",
   });
 
   if (!response.ok) {
     throw new Error("Unable to fetch leaderboard");
+  }
+
+  return response.json();
+}
+
+export async function fetchDashboard(playerName: string): Promise<PlayerDashboardStats> {
+  const response = await fetch(`${getApiBaseUrl()}/api/dashboard/${encodeURIComponent(playerName)}`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to fetch dashboard");
   }
 
   return response.json();

@@ -4,15 +4,23 @@ import { PlayerNameInput } from "@/components/PlayerNameInput";
 
 export default function HomePage() {
   return (
-    <main className="page-wrap">
-      <section className="hero">
+    <main className="page-wrap home-page">
+      <section className="hero home-hero">
         <div>
           <p className="eyebrow">Brain Games Lab</p>
-          <h1>Train memory with style.</h1>
+          <h1>MemoryAce: Train your brain with cinematic game loops.</h1>
           <p>
-            A sharper and more cinematic take on Human Benchmark, with smooth visuals,
-            game progression, and persistent score tracking.
+            MemoryAce is a refined benchmark-style platform where you build memory skills through
+            fast, escalating rounds. Every run is saved, and your long-term progress is visible on your dashboard.
           </p>
+          <div className="hero-buttons">
+            <Link href="/games/number-memory" className="btn">
+              Start Number Memory
+            </Link>
+            <Link href="/dashboard" className="btn ghost">
+              Open Dashboard
+            </Link>
+          </div>
         </div>
         <div className="orbs" aria-hidden="true">
           <span />
@@ -21,28 +29,39 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="cards">
-        <article className="panel">
+      <section className="cards home-cards">
+        <article className="panel menu-card">
           <h2>Number Memory</h2>
           <p>
-            Start with 1 digit and climb one digit every round. Memorize, type, and survive
-            as long as possible.
+            Start from 1 digit and push your recall ceiling with one extra digit each round.
           </p>
           <Link href="/games/number-memory" className="btn">
-            Play
+            Play Game
           </Link>
         </article>
 
-        <article className="panel">
+        <article className="panel menu-card">
           <h2>Sequence Memory</h2>
           <p>
-            A 3x3 board lights up in expanding chains. Repeat the exact sequence to keep advancing.
+            Watch a growing glow-chain on a 3x3 board, then replay the exact sequence without mistakes.
           </p>
           <Link href="/games/sequence-memory" className="btn secondary">
-            Play
+            Play Game
           </Link>
         </article>
 
+        <article className="panel menu-card">
+          <h2>Dashboard</h2>
+          <p>
+            View your total attempts, per-game high scores, averages, and which game you perform best at.
+          </p>
+          <Link href="/dashboard" className="btn ghost">
+            View Stats
+          </Link>
+        </article>
+      </section>
+
+      <section className="identity-section">
         <PlayerNameInput />
       </section>
     </main>
