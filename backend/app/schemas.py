@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-ALLOWED_GAMES = {"number_memory", "sequence_memory"}
+ALLOWED_GAMES = {"number_memory", "sequence_memory", "verbal_memory"}
 
 
 class ScoreCreate(BaseModel):

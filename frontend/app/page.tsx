@@ -17,6 +17,9 @@ export default function HomePage() {
             <Link href="/games/number-memory" className="btn">
               Start Number Memory
             </Link>
+            <Link href="/games/verbal-memory" className="btn secondary">
+              Start Verbal Memory
+            </Link>
             <Link href="/dashboard" className="btn ghost">
               Open Dashboard
             </Link>
@@ -57,6 +60,16 @@ export default function HomePage() {
           </p>
           <Link href="/dashboard" className="btn ghost">
             View Stats
+          </Link>
+        </article>
+
+        <article className="panel menu-card">
+          <h2>Verbal Memory</h2>
+          <p>
+            Judge each word as Seen or New. One mistake costs a life, and the stream gets trickier over time.
+          </p>
+          <Link href="/games/verbal-memory" className="btn secondary">
+            Play Game
           </Link>
         </article>
       </section>

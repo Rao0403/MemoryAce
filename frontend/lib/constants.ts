@@ -1,9 +1,10 @@
 export const GAME_LABELS: Record<string, string> = {
   number_memory: "Number Memory",
   sequence_memory: "Sequence Memory",
+  verbal_memory: "Verbal Memory",
 };
 
-export const GAME_KEYS = ["number_memory", "sequence_memory"] as const;
+export const GAME_KEYS = ["number_memory", "sequence_memory", "verbal_memory"] as const;
 export type GameKey = (typeof GAME_KEYS)[number];
 
 export function getApiBaseUrl(): string {

@@ -41,6 +41,9 @@ export function PlayerNameInput({ showQuickLinks = false }: { showQuickLinks?: b
           <Link href="/games/number-memory" className="btn secondary">
             Play Number Memory
           </Link>
+          <Link href="/games/verbal-memory" className="btn secondary">
+            Play Verbal Memory
+          </Link>
           <Link href="/games/sequence-memory" className="btn ghost">
             Play Sequence Memory
           </Link>

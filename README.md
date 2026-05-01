@@ -84,6 +84,7 @@ Frontend URL: `http://localhost:3000`
 Allowed game keys:
 - `number_memory`
 - `sequence_memory`
+- `verbal_memory`
 
 ## Next Additions
 

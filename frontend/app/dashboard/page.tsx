@@ -11,6 +11,7 @@ import { GAME_LABELS, type GameKey } from "@/lib/constants";
 const GAME_ROUTES: Record<GameKey, string> = {
   number_memory: "/games/number-memory",
   sequence_memory: "/games/sequence-memory",
+  verbal_memory: "/games/verbal-memory",
 };
 
 export default function DashboardPage() {
