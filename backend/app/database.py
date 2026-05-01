@@ -1,19 +1,28 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+import pymysql
+from pymysql.connections import Connection
 
 from .config import get_settings
 
 settings = get_settings()
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+
+def get_connection(database: str | None = None) -> Connection:
+    return pymysql.connect(
+        host=settings.mysql_host,
+        port=settings.mysql_port,
+        user=settings.mysql_user,
+        password=settings.mysql_password,
+        database=database or settings.mysql_database,
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=False,
+        charset="utf8mb4",
+    )
 
 
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
+def get_db() -> Generator[Connection, None, None]:
+    db = get_connection()
     try:
         yield db
     finally:

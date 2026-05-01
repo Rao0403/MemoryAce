@@ -32,7 +32,7 @@ Player stats are computed from attempts:
 ## Project Structure
 
 - `frontend/` Next.js app
-- `backend/` FastAPI API and SQLAlchemy models
+- `backend/` FastAPI API and MySQL queries
 
 ## Run Locally
 
@@ -44,6 +44,7 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env
+Get-Content db_scripts/init_mysql.sql | mysql -u root -p
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -53,7 +54,10 @@ Set your local MySQL credentials in `backend/.env`:
 - `MYSQL_USER`
 - `MYSQL_PASSWORD`
 - `MYSQL_DATABASE`
-- `MYSQL_DRIVER` (default: `mysql+pymysql`)
+
+If you use a DB name other than `brain_games`, update either:
+- `MYSQL_DATABASE` in `.env`, or
+- the `CREATE DATABASE` / `USE` lines in `db_scripts/init_mysql.sql`.
 
 API base URL: `http://localhost:8000`
 
