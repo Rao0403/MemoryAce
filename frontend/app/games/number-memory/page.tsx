@@ -6,6 +6,7 @@ import { GameHeader } from "@/components/GameHeader";
 import { getStoredPlayerName } from "@/components/PlayerNameInput";
 import { Leaderboard, PersonalStats } from "@/components/Scoreboards";
 import { fetchLeaderboard, fetchStats, submitScore, type LeaderboardRow, type PlayerGameStats } from "@/lib/api";
+import { useGameTelemetry } from "@/lib/useGameTelemetry";
 
 type Phase = "idle" | "showing" | "input" | "gameover";
 
@@ -33,6 +34,9 @@ export default function NumberMemoryPage() {
   const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[]>([]);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputStartedAtRef = useRef<number | null>(null);
+
+  const telemetry = useGameTelemetry(GAME_KEY, playerName);
 
   const revealMs = useMemo(() => Math.min(4500, 1000 + level * 260), [level]);
 
@@ -82,12 +86,14 @@ export default function NumberMemoryPage() {
     setStatusText(`Level ${nextLevel}: memorize quickly.`);
 
     timeoutRef.current = setTimeout(() => {
+      inputStartedAtRef.current = Date.now();
       setPhase("input");
       setStatusText(`Type the ${nextLevel}-digit number.`);
     }, Math.min(6000, 1000 + nextLevel * 260));
   }
 
   function startGame() {
+    void telemetry.startRun();
     runLevel(1);
   }
 
@@ -119,7 +125,24 @@ export default function NumberMemoryPage() {
       return;
     }
 
+    const reactionMs = inputStartedAtRef.current ? Date.now() - inputStartedAtRef.current : null;
+    const scoreBefore = Math.max(0, level - 1);
+
     if (normalized === shownNumber) {
+      telemetry.recordTrial({
+        difficulty_level: level,
+        reaction_ms: reactionMs,
+        correct: true,
+        score_before: scoreBefore,
+        score_after: level,
+        event_payload: {
+          digits_shown: shownNumber.length,
+          reveal_ms: revealMs,
+          input_length: normalized.length,
+          exact_match: true,
+        },
+      });
+
       const next = level + 1;
       setStatusText(`Correct. Next: ${next} digits.`);
       runLevel(next);
@@ -127,8 +150,23 @@ export default function NumberMemoryPage() {
     }
 
     const score = Math.max(0, level - 1);
+    telemetry.recordTrial({
+      difficulty_level: level,
+      reaction_ms: reactionMs,
+      correct: false,
+      score_before: scoreBefore,
+      score_after: score,
+      event_payload: {
+        digits_shown: shownNumber.length,
+        reveal_ms: revealMs,
+        input_length: normalized.length,
+        exact_match: false,
+      },
+    });
+
     setPhase("gameover");
     setStatusText(`Wrong. Number was ${shownNumber}. Final score: ${score}.`);
+    await telemetry.endRun({ finalScore: score, endReason: "completed" });
     await persistScore(score);
   }
 

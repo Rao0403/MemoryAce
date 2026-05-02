@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { GameHeader } from "@/components/GameHeader";
 import { getStoredPlayerName } from "@/components/PlayerNameInput";
 import { Leaderboard, PersonalStats } from "@/components/Scoreboards";
 import { fetchLeaderboard, fetchStats, submitScore, type LeaderboardRow, type PlayerGameStats } from "@/lib/api";
+import { useGameTelemetry } from "@/lib/useGameTelemetry";
 
 type Phase = "idle" | "playing" | "gameover";
 
@@ -57,6 +58,9 @@ export default function VerbalMemoryPage() {
 
   const [stats, setStats] = useState<PlayerGameStats | null>(null);
   const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[]>([]);
+  const wordShownAtRef = useRef<number | null>(null);
+
+  const telemetry = useGameTelemetry(GAME_KEY, playerName);
 
   const seenCount = useMemo(() => new Set(seenWords).size, [seenWords]);
 
@@ -86,11 +90,14 @@ export default function VerbalMemoryPage() {
   }, [playerName]);
 
   function startGame() {
+    void telemetry.startRun();
     setLives(MAX_LIVES);
     setScore(0);
     setSeenWords([]);
     setPhase("playing");
-    setCurrentWord(randomFrom(WORD_BANK));
+    const firstWord = randomFrom(WORD_BANK);
+    wordShownAtRef.current = Date.now();
+    setCurrentWord(firstWord);
     setStatusText("Round started. Decide if each word is Seen or New.");
   }
 
@@ -116,6 +123,7 @@ export default function VerbalMemoryPage() {
   async function handleGuess(guessSeen: boolean) {
     if (phase !== "playing" || !currentWord) return;
 
+    const reactionMs = wordShownAtRef.current ? Date.now() - wordShownAtRef.current : null;
     const actualSeen = seenWords.includes(currentWord);
     const isCorrect = guessSeen === actualSeen;
 
@@ -135,14 +143,38 @@ export default function VerbalMemoryPage() {
       setLives(nextLives);
     }
 
+    telemetry.recordTrial({
+      difficulty_level: nextSeenWords.length,
+      reaction_ms: reactionMs,
+      correct: isCorrect,
+      score_before: score,
+      score_after: nextScore,
+      lives_before: lives,
+      lives_after: nextLives,
+      event_payload: {
+        word: currentWord,
+        truth_seen: actualSeen,
+        answer_seen: guessSeen,
+        error_type: isCorrect ? "none" : actualSeen ? "miss" : "false_alarm",
+        unique_words_seen: new Set(nextSeenWords).size,
+      },
+    });
+
     if (nextLives <= 0) {
       setPhase("gameover");
       setStatusText(`Game over. Final score: ${nextScore}.`);
+      await telemetry.endRun({
+        finalScore: nextScore,
+        finalLives: 0,
+        endReason: "completed",
+      });
       await persistScore(nextScore);
       return;
     }
 
-    setCurrentWord(pickNextWord(nextSeenWords));
+    const nextWord = pickNextWord(nextSeenWords);
+    wordShownAtRef.current = Date.now();
+    setCurrentWord(nextWord);
     if (isCorrect) {
       setStatusText("Correct. Keep going.");
     } else {

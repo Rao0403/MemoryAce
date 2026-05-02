@@ -20,6 +20,11 @@ A full-stack brain-game platform inspired by Human Benchmark, with a more cinema
 - Sequence length grows by 1 per round
 - On failure, score is saved
 
+3. Verbal Memory
+- Word-by-word Seen/New recognition memory
+- 3 lives per run
+- On game over, score is saved
+
 ## Data Stored
 
 Each run stores a score attempt in MySQL.
@@ -46,6 +51,12 @@ pip install -r requirements.txt
 copy .env.example .env
 Get-Content db_scripts/init_mysql.sql | mysql -u root -p
 uvicorn app.main:app --reload --port 8000
+```
+
+If your DB is already set up from an earlier version, apply telemetry tables with:
+
+```bash
+Get-Content db_scripts/phase1_telemetry.sql | mysql -u root -p
 ```
 
 Set your local MySQL credentials in `backend/.env`:
@@ -80,6 +91,9 @@ Frontend URL: `http://localhost:3000`
 - `GET /api/leaderboard/{game}`
 - `GET /api/scores/recent`
 - `GET /api/dashboard/{player_name}`
+- `POST /api/runs/start`
+- `POST /api/runs/{run_id}/events/batch`
+- `POST /api/runs/{run_id}/end`
 
 Allowed game keys:
 - `number_memory`

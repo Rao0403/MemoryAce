@@ -6,6 +6,7 @@ import { GameHeader } from "@/components/GameHeader";
 import { getStoredPlayerName } from "@/components/PlayerNameInput";
 import { Leaderboard, PersonalStats } from "@/components/Scoreboards";
 import { fetchLeaderboard, fetchStats, submitScore, type LeaderboardRow, type PlayerGameStats } from "@/lib/api";
+import { useGameTelemetry } from "@/lib/useGameTelemetry";
 
 type Phase = "idle" | "playback" | "input" | "gameover";
 
@@ -29,6 +30,9 @@ export default function SequenceMemoryPage() {
   const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[]>([]);
 
   const timerRefs = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const stepStartedAtRef = useRef<number | null>(null);
+
+  const telemetry = useGameTelemetry(GAME_KEY, playerName);
 
   useEffect(() => {
     const name = getStoredPlayerName();
@@ -89,6 +93,7 @@ export default function SequenceMemoryPage() {
     const inputStart = 260 + nextSequence.length * 680;
     timerRefs.current.push(
       setTimeout(() => {
+        stepStartedAtRef.current = Date.now();
         setPhase("input");
         setStatusText("Your turn. Repeat the full pattern.");
       }, inputStart),
@@ -96,6 +101,7 @@ export default function SequenceMemoryPage() {
   }
 
   function startGame() {
+    void telemetry.startRun();
     const first = [randomCell()];
     setSequence(first);
     setStatusText("Level 1 sequence incoming.");
@@ -124,24 +130,73 @@ export default function SequenceMemoryPage() {
   async function onCellClick(cell: number) {
     if (phase !== "input") return;
 
+    const reactionMs = stepStartedAtRef.current ? Date.now() - stepStartedAtRef.current : null;
+    const expected = sequence[playerStep];
+    const scoreBefore = Math.max(0, sequence.length - 1);
+
     setActiveCell(cell);
     const offTimer = setTimeout(() => setActiveCell(null), 120);
     timerRefs.current.push(offTimer);
 
-    const expected = sequence[playerStep];
     if (cell !== expected) {
+      telemetry.recordTrial({
+        difficulty_level: sequence.length,
+        reaction_ms: reactionMs,
+        correct: false,
+        score_before: scoreBefore,
+        score_after: scoreBefore,
+        event_payload: {
+          sequence_length: sequence.length,
+          tapped_cell: cell,
+          expected_cell: expected,
+          player_step: playerStep + 1,
+          wrong_step_index: playerStep + 1,
+        },
+      });
+
       const score = Math.max(0, sequence.length - 1);
       setPhase("gameover");
       setStatusText(`Wrong tap. Final score: ${score}.`);
+      await telemetry.endRun({ finalScore: score, endReason: "completed" });
       await persistScore(score);
       return;
     }
 
     const nextStep = playerStep + 1;
     if (nextStep < sequence.length) {
+      telemetry.recordTrial({
+        difficulty_level: sequence.length,
+        reaction_ms: reactionMs,
+        correct: true,
+        score_before: scoreBefore,
+        score_after: scoreBefore,
+        event_payload: {
+          sequence_length: sequence.length,
+          tapped_cell: cell,
+          expected_cell: expected,
+          player_step: playerStep + 1,
+          wrong_step_index: null,
+        },
+      });
       setPlayerStep(nextStep);
+      stepStartedAtRef.current = Date.now();
       return;
     }
+
+    telemetry.recordTrial({
+      difficulty_level: sequence.length,
+      reaction_ms: reactionMs,
+      correct: true,
+      score_before: scoreBefore,
+      score_after: sequence.length,
+      event_payload: {
+        sequence_length: sequence.length,
+        tapped_cell: cell,
+        expected_cell: expected,
+        player_step: playerStep + 1,
+        wrong_step_index: null,
+      },
+    });
 
     const extended = [...sequence, randomCell()];
     setSequence(extended);
