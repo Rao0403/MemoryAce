@@ -5,10 +5,9 @@ from pymysql.connections import Connection
 
 from .config import get_settings
 
-settings = get_settings()
-
 
 def get_connection(database: str | None = None) -> Connection:
+    settings = get_settings()
     return pymysql.connect(
         host=settings.mysql_host,
         port=settings.mysql_port,

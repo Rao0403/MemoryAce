@@ -5,7 +5,21 @@ import Link from "next/link";
 
 const PLAYER_KEY = "bf_player_name";
 
-export function PlayerNameInput({ showQuickLinks = false }: { showQuickLinks?: boolean }) {
+type PlayerNameInputProps = {
+  showQuickLinks?: boolean;
+  title?: string;
+  description?: string;
+  buttonLabel?: string;
+  onSave?: (playerName: string) => void;
+};
+
+export function PlayerNameInput({
+  showQuickLinks = false,
+  title = "Player Identity",
+  description = "Used for your high score and average score in MySQL.",
+  buttonLabel = "Save",
+  onSave,
+}: PlayerNameInputProps) {
   const [name, setName] = useState("");
 
   useEffect(() => {
@@ -18,11 +32,12 @@ export function PlayerNameInput({ showQuickLinks = false }: { showQuickLinks?: b
     if (!trimmed) return;
     setStoredPlayerName(trimmed);
     setName(trimmed);
+    onSave?.(trimmed);
   }
 
   return (
     <div className="panel compact">
-      <p className="panel-title">Player Identity</p>
+      <p className="panel-title">{title}</p>
       <div className="input-row">
         <input
           className="text-input"
@@ -32,10 +47,10 @@ export function PlayerNameInput({ showQuickLinks = false }: { showQuickLinks?: b
           maxLength={64}
         />
         <button className="btn" onClick={saveName} type="button">
-          Save
+          {buttonLabel}
         </button>
       </div>
-      <p className="muted">Used for your high score and average score in MySQL.</p>
+      <p className="muted">{description}</p>
       {showQuickLinks && (
         <>
           <Link href="/games/number-memory" className="btn secondary">

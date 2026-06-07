@@ -37,11 +37,19 @@ Player stats are computed from attempts:
 ## Project Structure
 
 - `frontend/` Next.js app
-- `backend/` FastAPI API and MySQL queries
+- `backend/` FastAPI API, routers, queries, and smoke tests
 
 ## Run Locally
 
-### 1) Configure and Run Backend
+### 1) Start MySQL
+
+```bash
+docker compose up -d mysql
+```
+
+MySQL will be available on `localhost:3307` with the default DB name `brain_games`.
+
+### 2) Configure and Run Backend
 
 ```bash
 cd backend
@@ -49,14 +57,14 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env
-Get-Content db_scripts/init_mysql.sql | mysql -u root -p
+Get-Content db_scripts/init_mysql.sql | mysql -h 127.0.0.1 -P 3307 -u root -proot
 uvicorn app.main:app --reload --port 8000
 ```
 
 If your DB is already set up from an earlier version, apply telemetry tables with:
 
 ```bash
-Get-Content db_scripts/phase1_telemetry.sql | mysql -u root -p
+Get-Content db_scripts/phase1_telemetry.sql | mysql -h 127.0.0.1 -P 3307 -u root -proot
 ```
 
 Set your local MySQL credentials in `backend/.env`:
@@ -72,7 +80,7 @@ If you use a DB name other than `brain_games`, update either:
 
 API base URL: `http://localhost:8000`
 
-### 2) Run Frontend
+### 3) Run Frontend
 
 ```bash
 cd frontend
@@ -82,6 +90,29 @@ npm run dev
 ```
 
 Frontend URL: `http://localhost:3000`
+
+## Verification
+
+Backend smoke tests:
+
+```bash
+cd backend
+python -m unittest discover -s tests
+```
+
+Frontend logic tests:
+
+```bash
+cd frontend
+npm run test:logic
+```
+
+Frontend production build:
+
+```bash
+cd frontend
+npm run build
+```
 
 ## Current API Endpoints
 
@@ -102,7 +133,9 @@ Allowed game keys:
 
 ## Next Additions
 
-The architecture is ready to keep adding new games while reusing:
+The stabilized architecture is ready to keep adding new games while reusing:
 - score persistence
+- shared game session flow
+- telemetry batching
 - stats components
 - leaderboard endpoint

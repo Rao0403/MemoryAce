@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
-ALLOWED_GAMES = {"number_memory", "sequence_memory", "verbal_memory"}
+from .game_registry import ALLOWED_GAMES, normalize_game_key
 
 
 class ScoreCreate(BaseModel):
@@ -22,10 +22,7 @@ class ScoreCreate(BaseModel):
     @field_validator("game")
     @classmethod
     def validate_game(cls, value: str) -> str:
-        normalized = value.strip()
-        if normalized not in ALLOWED_GAMES:
-            raise ValueError(f"Game must be one of: {', '.join(sorted(ALLOWED_GAMES))}")
-        return normalized
+        return normalize_game_key(value)
 
 
 class ScoreRead(BaseModel):
@@ -87,10 +84,7 @@ class RunStartCreate(BaseModel):
     @field_validator("game")
     @classmethod
     def validate_game(cls, value: str) -> str:
-        normalized = value.strip()
-        if normalized not in ALLOWED_GAMES:
-            raise ValueError(f"Game must be one of: {', '.join(sorted(ALLOWED_GAMES))}")
-        return normalized
+        return normalize_game_key(value)
 
 
 class RunStartRead(BaseModel):

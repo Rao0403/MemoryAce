@@ -161,6 +161,7 @@ export async function startGameRun(params: {
 export async function sendRunEventsBatch(params: {
   runId: number;
   events: TrialEventPayload[];
+  keepalive?: boolean;
 }): Promise<void> {
   const response = await fetch(`${getApiBaseUrl()}/api/runs/${params.runId}/events/batch`, {
     method: "POST",
@@ -169,6 +170,7 @@ export async function sendRunEventsBatch(params: {
     },
     body: JSON.stringify({ events: params.events }),
     cache: "no-store",
+    keepalive: params.keepalive ?? false,
   });
 
   if (!response.ok) {
@@ -202,4 +204,19 @@ export async function endGameRun(params: {
   }
 
   return response.json();
+}
+
+export function sendRunEventsBatchBeacon(params: {
+  runId: number;
+  events: TrialEventPayload[];
+}): boolean {
+  if (typeof navigator === "undefined" || typeof navigator.sendBeacon !== "function") {
+    return false;
+  }
+
+  const body = new Blob([JSON.stringify({ events: params.events })], {
+    type: "application/json",
+  });
+
+  return navigator.sendBeacon(`${getApiBaseUrl()}/api/runs/${params.runId}/events/batch`, body);
 }

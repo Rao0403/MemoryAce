@@ -1,69 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { GameHeader } from "@/components/GameHeader";
-import { getStoredPlayerName } from "@/components/PlayerNameInput";
-import { Leaderboard, PersonalStats } from "@/components/Scoreboards";
-import { fetchLeaderboard, fetchStats, submitScore, type LeaderboardRow, type PlayerGameStats } from "@/lib/api";
-import { useGameTelemetry } from "@/lib/useGameTelemetry";
+import { GameShell } from "@/components/GameShell";
+import { generateNumber, getNumberMemoryScore, getRevealMs } from "@/lib/game-logic/numberMemory";
+import { useGameSession } from "@/lib/useGameSession";
 
 type Phase = "idle" | "showing" | "input" | "gameover";
 
 const GAME_KEY = "number_memory" as const;
 
-function generateNumber(level: number): string {
-  let value = "";
-  for (let index = 0; index < level; index += 1) {
-    const min = index === 0 ? 1 : 0;
-    value += Math.floor(Math.random() * (10 - min) + min).toString();
-  }
-  return value;
-}
-
 export default function NumberMemoryPage() {
-  const [playerName, setPlayerName] = useState("");
+  const { state, actions } = useGameSession(GAME_KEY);
   const [phase, setPhase] = useState<Phase>("idle");
   const [level, setLevel] = useState(1);
   const [shownNumber, setShownNumber] = useState("");
   const [answer, setAnswer] = useState("");
   const [statusText, setStatusText] = useState("Start at 1 digit and climb forever.");
-  const [isSaving, setIsSaving] = useState(false);
-
-  const [stats, setStats] = useState<PlayerGameStats | null>(null);
-  const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[]>([]);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputStartedAtRef = useRef<number | null>(null);
-
-  const telemetry = useGameTelemetry(GAME_KEY, playerName);
-
-  const revealMs = useMemo(() => Math.min(4500, 1000 + level * 260), [level]);
-
-  useEffect(() => {
-    const name = getStoredPlayerName();
-    setPlayerName(name);
-  }, []);
-
-  useEffect(() => {
-    if (!playerName) return;
-
-    let cancelled = false;
-    Promise.all([fetchStats({ playerName, game: GAME_KEY }), fetchLeaderboard(GAME_KEY)])
-      .then(([personal, leaderboard]) => {
-        if (cancelled) return;
-        setStats(personal);
-        setLeaderboardRows(leaderboard);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setStatusText("Could not load score history right now.");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [playerName]);
+  const revealMs = getRevealMs(level);
 
   useEffect(() => {
     return () => {
@@ -79,6 +36,8 @@ export default function NumberMemoryPage() {
     }
 
     const generated = generateNumber(nextLevel);
+    const nextRevealMs = getRevealMs(nextLevel);
+
     setLevel(nextLevel);
     setShownNumber(generated);
     setAnswer("");
@@ -89,31 +48,15 @@ export default function NumberMemoryPage() {
       inputStartedAtRef.current = Date.now();
       setPhase("input");
       setStatusText(`Type the ${nextLevel}-digit number.`);
-    }, Math.min(6000, 1000 + nextLevel * 260));
+    }, nextRevealMs);
   }
 
-  function startGame() {
-    void telemetry.startRun();
-    runLevel(1);
-  }
-
-  async function persistScore(score: number) {
-    if (!playerName) {
-      setStatusText("Set a player name on Home before saving scores.");
+  async function startGame() {
+    const started = await actions.startTrackedRun();
+    if (!started) {
       return;
     }
-
-    setIsSaving(true);
-    try {
-      const personal = await submitScore({ playerName, game: GAME_KEY, score });
-      const leaderboard = await fetchLeaderboard(GAME_KEY);
-      setStats(personal);
-      setLeaderboardRows(leaderboard);
-    } catch {
-      setStatusText("Run ended, but score save failed.");
-    } finally {
-      setIsSaving(false);
-    }
+    runLevel(1);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -126,10 +69,10 @@ export default function NumberMemoryPage() {
     }
 
     const reactionMs = inputStartedAtRef.current ? Date.now() - inputStartedAtRef.current : null;
-    const scoreBefore = Math.max(0, level - 1);
+    const scoreBefore = getNumberMemoryScore(level);
 
     if (normalized === shownNumber) {
-      telemetry.recordTrial({
+      actions.recordTrial({
         difficulty_level: level,
         reaction_ms: reactionMs,
         correct: true,
@@ -149,8 +92,8 @@ export default function NumberMemoryPage() {
       return;
     }
 
-    const score = Math.max(0, level - 1);
-    telemetry.recordTrial({
+    const score = getNumberMemoryScore(level);
+    actions.recordTrial({
       difficulty_level: level,
       reaction_ms: reactionMs,
       correct: false,
@@ -166,79 +109,74 @@ export default function NumberMemoryPage() {
 
     setPhase("gameover");
     setStatusText(`Wrong. Number was ${shownNumber}. Final score: ${score}.`);
-    await telemetry.endRun({ finalScore: score, endReason: "completed" });
-    await persistScore(score);
+    await actions.finishTrackedRun({ finalScore: score });
   }
 
   return (
-    <main className="page-wrap game-page">
-      <GameHeader title="Number Memory" subtitle="Each round adds one digit. Beat your limit." />
+    <GameShell
+      title={state.definition.heroTitle}
+      subtitle={state.definition.subtitle}
+      hudItems={[
+        { label: "Level", value: `${level}` },
+        { label: "Reveal", value: `${revealMs}ms` },
+      ]}
+      statusText={statusText}
+      noticeText={state.noticeText}
+      playerName={state.playerName}
+      hasPlayerName={state.hasPlayerName}
+      stats={state.stats}
+      leaderboardRows={state.leaderboardRows}
+      isLoadingMeta={state.isLoadingMeta}
+      isSavingResult={state.isSavingResult}
+      metaError={state.metaError}
+      onPlayerNameSaved={actions.savePlayerName}
+    >
+      {phase === "idle" && (
+        <div className="center-stack">
+          <h2>Ready?</h2>
+          <p className="muted">
+            {state.hasPlayerName
+              ? "Memorize what you see before it fades."
+              : "Save a player name above to start a tracked run."}
+          </p>
+          <button className="btn" type="button" onClick={() => void startGame()} disabled={!state.hasPlayerName}>
+            Start Game
+          </button>
+        </div>
+      )}
 
-      <section className="game-center">
-        <article className="panel game-surface">
-          <div className="hud-row">
-            <span className="chip">Level {level}</span>
-            <span className="chip">Reveal {revealMs}ms</span>
-            {playerName ? <span className="chip">{playerName}</span> : <span className="chip warning">No player name</span>}
-          </div>
+      {phase === "showing" && (
+        <div className="center-stack">
+          <p className="muted">Memorize</p>
+          <div className="memory-number pulse">{shownNumber}</div>
+        </div>
+      )}
 
-          {phase === "idle" && (
-            <div className="center-stack">
-              <h2>Ready?</h2>
-              <p className="muted">Memorize what you see before it fades.</p>
-              <button className="btn" type="button" onClick={startGame}>
-                Start Game
-              </button>
-            </div>
-          )}
+      {phase === "input" && (
+        <form onSubmit={(event) => void handleSubmit(event)} className="center-stack">
+          <p className="muted">Enter the hidden number</p>
+          <input
+            className="text-input big"
+            inputMode="numeric"
+            value={answer}
+            onChange={(event) => setAnswer(event.target.value.replace(/[^0-9]/g, ""))}
+            autoFocus
+          />
+          <button className="btn secondary" type="submit">
+            Submit
+          </button>
+        </form>
+      )}
 
-          {phase === "showing" && (
-            <div className="center-stack">
-              <p className="muted">Memorize</p>
-              <div className="memory-number pulse">{shownNumber}</div>
-            </div>
-          )}
-
-          {phase === "input" && (
-            <form onSubmit={handleSubmit} className="center-stack">
-              <p className="muted">Enter the hidden number</p>
-              <input
-                className="text-input big"
-                inputMode="numeric"
-                value={answer}
-                onChange={(event) => setAnswer(event.target.value.replace(/[^0-9]/g, ""))}
-                autoFocus
-              />
-              <button className="btn secondary" type="submit">
-                Submit
-              </button>
-            </form>
-          )}
-
-          {phase === "gameover" && (
-            <div className="center-stack">
-              <h2>Round Over</h2>
-              <p className="muted">{isSaving ? "Saving score..." : "Score recorded."}</p>
-              <button className="btn" type="button" onClick={startGame}>
-                Play Again
-              </button>
-            </div>
-          )}
-
-          <p className="status-line">{statusText}</p>
-        </article>
-
-        <aside className="game-meta-grid">
-          <article className="panel compact">
-            <p className="panel-title">Your Stats</p>
-            <PersonalStats stats={stats} />
-          </article>
-          <article className="panel compact">
-            <p className="panel-title">Top Players</p>
-            <Leaderboard rows={leaderboardRows} />
-          </article>
-        </aside>
-      </section>
-    </main>
+      {phase === "gameover" && (
+        <div className="center-stack">
+          <h2>Round Over</h2>
+          <p className="muted">{state.isSavingResult ? "Saving score..." : "Score recorded."}</p>
+          <button className="btn" type="button" onClick={() => void startGame()}>
+            Play Again
+          </button>
+        </div>
+      )}
+    </GameShell>
   );
 }

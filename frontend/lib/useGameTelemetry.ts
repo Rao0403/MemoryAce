@@ -2,12 +2,18 @@
 
 import { useEffect, useRef } from "react";
 
-import { endGameRun, sendRunEventsBatch, startGameRun, type TrialEventPayload } from "@/lib/api";
+import {
+  endGameRun,
+  sendRunEventsBatch,
+  sendRunEventsBatchBeacon,
+  startGameRun,
+  type TrialEventPayload,
+} from "@/lib/api";
 import type { GameKey } from "@/lib/constants";
 
-type EndReason = "completed" | "abandoned" | "timeout" | "quit";
+export type EndReason = "completed" | "abandoned" | "timeout" | "quit";
 
-type RecordTrialInput = Omit<TrialEventPayload, "trial_index" | "occurred_at" | "event_schema_version"> & {
+export type GameTelemetryEvent = Omit<TrialEventPayload, "trial_index" | "occurred_at" | "event_schema_version"> & {
   occurred_at?: string;
   event_schema_version?: number;
 };
@@ -20,43 +26,93 @@ export function useGameTelemetry(game: GameKey, playerName: string) {
   const activeRef = useRef(false);
   const trialIndexRef = useRef(0);
   const pendingEventsRef = useRef<TrialEventPayload[]>([]);
+  const flushInFlightRef = useRef<Promise<void> | null>(null);
+  const endInFlightRef = useRef<Promise<void> | null>(null);
+  const startInFlightRef = useRef<Promise<boolean> | null>(null);
+  const flushPendingEventsRef = useRef<(options?: { preferBeacon?: boolean }) => Promise<void>>(async () => {});
 
-  async function flushPendingEvents() {
+  async function flushPendingEvents(options?: { preferBeacon?: boolean }) {
     const runId = runIdRef.current;
     if (!runId || pendingEventsRef.current.length === 0) {
+      return;
+    }
+
+    if (flushInFlightRef.current) {
+      await flushInFlightRef.current;
+      if (pendingEventsRef.current.length > 0) {
+        return flushPendingEvents(options);
+      }
       return;
     }
 
     const batch = [...pendingEventsRef.current];
     pendingEventsRef.current = [];
 
-    try {
-      await sendRunEventsBatch({ runId, events: batch });
-    } catch {
-      pendingEventsRef.current = [...batch, ...pendingEventsRef.current];
+    if (options?.preferBeacon && sendRunEventsBatchBeacon({ runId, events: batch })) {
+      return;
+    }
+
+    flushInFlightRef.current = (async () => {
+      try {
+        await sendRunEventsBatch({
+          runId,
+          events: batch,
+          keepalive: options?.preferBeacon ?? false,
+        });
+      } catch {
+        pendingEventsRef.current = [...batch, ...pendingEventsRef.current];
+      } finally {
+        flushInFlightRef.current = null;
+      }
+    })();
+
+    await flushInFlightRef.current;
+
+    if (pendingEventsRef.current.length > 0 && activeRef.current) {
+      await flushPendingEvents();
     }
   }
 
-  async function startRun() {
-    activeRef.current = true;
+  flushPendingEventsRef.current = flushPendingEvents;
+
+  async function startRun(): Promise<boolean> {
+    if (activeRef.current) {
+      return true;
+    }
+
+    if (startInFlightRef.current) {
+      return startInFlightRef.current;
+    }
+
     trialIndexRef.current = 0;
     pendingEventsRef.current = [];
     runIdRef.current = null;
 
-    try {
-      const run = await startGameRun({
-        playerName: playerName.trim() || undefined,
-        game,
-        eventSchemaVersion: EVENT_SCHEMA_VERSION,
-      });
-      runIdRef.current = run.run_id;
-      await flushPendingEvents();
-    } catch {
-      runIdRef.current = null;
-    }
+    startInFlightRef.current = (async () => {
+      try {
+        const run = await startGameRun({
+          playerName: playerName.trim() || undefined,
+          game,
+          eventSchemaVersion: EVENT_SCHEMA_VERSION,
+        });
+        runIdRef.current = run.run_id;
+        activeRef.current = true;
+        await flushPendingEvents();
+        return true;
+      } catch {
+        activeRef.current = false;
+        runIdRef.current = null;
+        pendingEventsRef.current = [];
+        return false;
+      } finally {
+        startInFlightRef.current = null;
+      }
+    })();
+
+    return startInFlightRef.current;
   }
 
-  function recordTrial(input: RecordTrialInput) {
+  function recordTrial(input: GameTelemetryEvent) {
     if (!activeRef.current) {
       return;
     }
@@ -79,7 +135,7 @@ export function useGameTelemetry(game: GameKey, playerName: string) {
       event_schema_version: input.event_schema_version ?? EVENT_SCHEMA_VERSION,
     });
 
-    if (pendingEventsRef.current.length >= MAX_BATCH_SIZE) {
+    if (pendingEventsRef.current.length >= MAX_BATCH_SIZE && !flushInFlightRef.current) {
       void flushPendingEvents();
     }
   }
@@ -90,33 +146,46 @@ export function useGameTelemetry(game: GameKey, playerName: string) {
     finalLives?: number;
     totalTrials?: number;
   }) {
-    if (!activeRef.current) {
+    if (!activeRef.current && !endInFlightRef.current) {
       return;
     }
 
-    await flushPendingEvents();
-
-    const runId = runIdRef.current;
-    const totalTrials = params.totalTrials ?? trialIndexRef.current;
-
-    if (runId) {
-      try {
-        await endGameRun({
-          runId,
-          finalScore: params.finalScore,
-          endReason: params.endReason ?? "completed",
-          finalLives: params.finalLives,
-          totalTrials,
-        });
-      } catch {
-        // Best effort telemetry; gameplay should continue even if logging fails.
-      }
+    if (endInFlightRef.current) {
+      await endInFlightRef.current;
+      return;
     }
 
-    runIdRef.current = null;
-    activeRef.current = false;
-    trialIndexRef.current = 0;
-    pendingEventsRef.current = [];
+    endInFlightRef.current = (async () => {
+      await flushPendingEvents();
+
+      const runId = runIdRef.current;
+      const totalTrials = params.totalTrials ?? trialIndexRef.current;
+
+      if (runId) {
+        try {
+          await endGameRun({
+            runId,
+            finalScore: params.finalScore,
+            endReason: params.endReason ?? "completed",
+            finalLives: params.finalLives,
+            totalTrials,
+          });
+        } catch {
+          // Best effort telemetry; gameplay should continue even if logging fails.
+        }
+      }
+
+      runIdRef.current = null;
+      activeRef.current = false;
+      trialIndexRef.current = 0;
+      pendingEventsRef.current = [];
+    })();
+
+    try {
+      await endInFlightRef.current;
+    } finally {
+      endInFlightRef.current = null;
+    }
   }
 
   function getTrialCount(): number {
@@ -125,14 +194,14 @@ export function useGameTelemetry(game: GameKey, playerName: string) {
 
   useEffect(() => {
     function handlePageHide() {
-      void flushPendingEvents();
+      void flushPendingEventsRef.current({ preferBeacon: true });
     }
 
     window.addEventListener("pagehide", handlePageHide);
 
     return () => {
       window.removeEventListener("pagehide", handlePageHide);
-      void flushPendingEvents();
+      void flushPendingEventsRef.current({ preferBeacon: true });
     };
   }, []);
 

@@ -2,62 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { GameHeader } from "@/components/GameHeader";
-import { getStoredPlayerName } from "@/components/PlayerNameInput";
-import { Leaderboard, PersonalStats } from "@/components/Scoreboards";
-import { fetchLeaderboard, fetchStats, submitScore, type LeaderboardRow, type PlayerGameStats } from "@/lib/api";
-import { useGameTelemetry } from "@/lib/useGameTelemetry";
+import { GameShell } from "@/components/GameShell";
+import { extendSequence, getSequenceScore, randomCell, SEQUENCE_GRID_SIZE } from "@/lib/game-logic/sequenceMemory";
+import { useGameSession } from "@/lib/useGameSession";
 
 type Phase = "idle" | "playback" | "input" | "gameover";
 
-const GRID_SIZE = 9;
 const GAME_KEY = "sequence_memory" as const;
 
-function randomCell(): number {
-  return Math.floor(Math.random() * GRID_SIZE);
-}
-
 export default function SequenceMemoryPage() {
-  const [playerName, setPlayerName] = useState("");
+  const { state, actions } = useGameSession(GAME_KEY);
   const [phase, setPhase] = useState<Phase>("idle");
   const [sequence, setSequence] = useState<number[]>([]);
   const [playerStep, setPlayerStep] = useState(0);
   const [activeCell, setActiveCell] = useState<number | null>(null);
   const [statusText, setStatusText] = useState("Watch the sequence, then repeat it exactly.");
-  const [isSaving, setIsSaving] = useState(false);
-
-  const [stats, setStats] = useState<PlayerGameStats | null>(null);
-  const [leaderboardRows, setLeaderboardRows] = useState<LeaderboardRow[]>([]);
 
   const timerRefs = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const stepStartedAtRef = useRef<number | null>(null);
-
-  const telemetry = useGameTelemetry(GAME_KEY, playerName);
-
-  useEffect(() => {
-    const name = getStoredPlayerName();
-    setPlayerName(name);
-  }, []);
-
-  useEffect(() => {
-    if (!playerName) return;
-
-    let cancelled = false;
-    Promise.all([fetchStats({ playerName, game: GAME_KEY }), fetchLeaderboard(GAME_KEY)])
-      .then(([personal, leaderboard]) => {
-        if (cancelled) return;
-        setStats(personal);
-        setLeaderboardRows(leaderboard);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setStatusText("Could not load score history right now.");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [playerName]);
 
   useEffect(() => {
     return () => {
@@ -100,31 +62,16 @@ export default function SequenceMemoryPage() {
     );
   }
 
-  function startGame() {
-    void telemetry.startRun();
+  async function startGame() {
+    const started = await actions.startTrackedRun();
+    if (!started) {
+      return;
+    }
+
     const first = [randomCell()];
     setSequence(first);
     setStatusText("Level 1 sequence incoming.");
     playSequence(first);
-  }
-
-  async function persistScore(score: number) {
-    if (!playerName) {
-      setStatusText("Set a player name on Home before saving scores.");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const personal = await submitScore({ playerName, game: GAME_KEY, score });
-      const leaderboard = await fetchLeaderboard(GAME_KEY);
-      setStats(personal);
-      setLeaderboardRows(leaderboard);
-    } catch {
-      setStatusText("Run ended, but score save failed.");
-    } finally {
-      setIsSaving(false);
-    }
   }
 
   async function onCellClick(cell: number) {
@@ -132,14 +79,14 @@ export default function SequenceMemoryPage() {
 
     const reactionMs = stepStartedAtRef.current ? Date.now() - stepStartedAtRef.current : null;
     const expected = sequence[playerStep];
-    const scoreBefore = Math.max(0, sequence.length - 1);
+    const scoreBefore = getSequenceScore(sequence.length);
 
     setActiveCell(cell);
     const offTimer = setTimeout(() => setActiveCell(null), 120);
     timerRefs.current.push(offTimer);
 
     if (cell !== expected) {
-      telemetry.recordTrial({
+      actions.recordTrial({
         difficulty_level: sequence.length,
         reaction_ms: reactionMs,
         correct: false,
@@ -154,17 +101,16 @@ export default function SequenceMemoryPage() {
         },
       });
 
-      const score = Math.max(0, sequence.length - 1);
+      const score = getSequenceScore(sequence.length);
       setPhase("gameover");
       setStatusText(`Wrong tap. Final score: ${score}.`);
-      await telemetry.endRun({ finalScore: score, endReason: "completed" });
-      await persistScore(score);
+      await actions.finishTrackedRun({ finalScore: score });
       return;
     }
 
     const nextStep = playerStep + 1;
     if (nextStep < sequence.length) {
-      telemetry.recordTrial({
+      actions.recordTrial({
         difficulty_level: sequence.length,
         reaction_ms: reactionMs,
         correct: true,
@@ -183,7 +129,7 @@ export default function SequenceMemoryPage() {
       return;
     }
 
-    telemetry.recordTrial({
+    actions.recordTrial({
       difficulty_level: sequence.length,
       reaction_ms: reactionMs,
       correct: true,
@@ -198,73 +144,69 @@ export default function SequenceMemoryPage() {
       },
     });
 
-    const extended = [...sequence, randomCell()];
+    const extended = extendSequence(sequence);
     setSequence(extended);
     setStatusText(`Correct. Level ${extended.length} incoming.`);
     playSequence(extended);
   }
 
   return (
-    <main className="page-wrap game-page">
-      <GameHeader title="Sequence Memory" subtitle="3x3 pattern chains. Repeat perfectly." />
+    <GameShell
+      title={state.definition.heroTitle}
+      subtitle={state.definition.subtitle}
+      hudItems={[
+        { label: "Level", value: `${Math.max(1, sequence.length)}` },
+        { label: "Step", value: `${Math.min(playerStep + 1, Math.max(sequence.length, 1))}` },
+      ]}
+      statusText={statusText}
+      noticeText={state.noticeText}
+      playerName={state.playerName}
+      hasPlayerName={state.hasPlayerName}
+      stats={state.stats}
+      leaderboardRows={state.leaderboardRows}
+      isLoadingMeta={state.isLoadingMeta}
+      isSavingResult={state.isSavingResult}
+      metaError={state.metaError}
+      onPlayerNameSaved={actions.savePlayerName}
+    >
+      {phase === "idle" && (
+        <div className="center-stack">
+          <h2>Ready?</h2>
+          <p className="muted">
+            {state.hasPlayerName
+              ? "Memorize each glow and replay in exact order."
+              : "Save a player name above to start a tracked run."}
+          </p>
+          <button className="btn" type="button" onClick={() => void startGame()} disabled={!state.hasPlayerName}>
+            Start Game
+          </button>
+        </div>
+      )}
 
-      <section className="game-center">
-        <article className="panel game-surface">
-          <div className="hud-row">
-            <span className="chip">Level {Math.max(1, sequence.length)}</span>
-            <span className="chip">Step {Math.min(playerStep + 1, Math.max(sequence.length, 1))}</span>
-            {playerName ? <span className="chip">{playerName}</span> : <span className="chip warning">No player name</span>}
-          </div>
+      {phase !== "idle" && (
+        <div className="sequence-grid" aria-label="3 by 3 sequence grid">
+          {Array.from({ length: SEQUENCE_GRID_SIZE }).map((_, cell) => (
+            <button
+              key={cell}
+              type="button"
+              className={`sequence-cell ${activeCell === cell ? "active" : ""}`}
+              onClick={() => {
+                void onCellClick(cell);
+              }}
+              disabled={phase === "playback" || phase === "gameover"}
+            />
+          ))}
+        </div>
+      )}
 
-          {phase === "idle" && (
-            <div className="center-stack">
-              <h2>Ready?</h2>
-              <p className="muted">Memorize each glow and replay in exact order.</p>
-              <button className="btn" type="button" onClick={startGame}>
-                Start Game
-              </button>
-            </div>
-          )}
-
-          {phase !== "idle" && (
-            <div className="sequence-grid" aria-label="3 by 3 sequence grid">
-              {Array.from({ length: GRID_SIZE }).map((_, cell) => (
-                <button
-                  key={cell}
-                  type="button"
-                  className={`sequence-cell ${activeCell === cell ? "active" : ""}`}
-                  onClick={() => {
-                    void onCellClick(cell);
-                  }}
-                  disabled={phase === "playback" || phase === "gameover"}
-                />
-              ))}
-            </div>
-          )}
-
-          {phase === "gameover" && (
-            <div className="center-stack">
-              <p className="muted">{isSaving ? "Saving score..." : "Score recorded."}</p>
-              <button className="btn secondary" type="button" onClick={startGame}>
-                Play Again
-              </button>
-            </div>
-          )}
-
-          <p className="status-line">{statusText}</p>
-        </article>
-
-        <aside className="game-meta-grid">
-          <article className="panel compact">
-            <p className="panel-title">Your Stats</p>
-            <PersonalStats stats={stats} />
-          </article>
-          <article className="panel compact">
-            <p className="panel-title">Top Players</p>
-            <Leaderboard rows={leaderboardRows} />
-          </article>
-        </aside>
-      </section>
-    </main>
+      {phase === "gameover" && (
+        <div className="center-stack">
+          <p className="muted">{state.isSavingResult ? "Saving score..." : "Score recorded."}</p>
+          <button className="btn secondary" type="button" onClick={() => void startGame()}>
+            Play Again
+          </button>
+        </div>
+      )}
+    </GameShell>
   );
 }
