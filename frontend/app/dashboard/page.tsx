@@ -6,13 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { GameHeader } from "@/components/GameHeader";
 import { getStoredPlayerName, setStoredPlayerName } from "@/components/PlayerNameInput";
 import { fetchDashboard, type PlayerDashboardStats } from "@/lib/api";
-import { GAME_LABELS, type GameKey } from "@/lib/constants";
-
-const GAME_ROUTES: Record<GameKey, string> = {
-  number_memory: "/games/number-memory",
-  sequence_memory: "/games/sequence-memory",
-  verbal_memory: "/games/verbal-memory",
-};
+import { GAME_LABELS, GAME_ROUTES } from "@/lib/constants";
 
 export default function DashboardPage() {
   const [playerName, setPlayerName] = useState("");
