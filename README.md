@@ -43,11 +43,7 @@ Player stats are computed from attempts:
 
 ### 1) Start MySQL
 
-```bash
-docker compose up -d mysql
-```
-
-MySQL will be available on `localhost:3307` with the default DB name `brain_games`.
+Make sure you already have a local MySQL server running.
 
 ### 2) Configure and Run Backend
 
@@ -57,14 +53,14 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env
-Get-Content db_scripts/init_mysql.sql | mysql -h 127.0.0.1 -P 3307 -u root -proot
+Get-Content db_scripts/init_mysql.sql | mysql -u root -p
 uvicorn app.main:app --reload --port 8000
 ```
 
 If your DB is already set up from an earlier version, apply telemetry tables with:
 
 ```bash
-Get-Content db_scripts/phase1_telemetry.sql | mysql -h 127.0.0.1 -P 3307 -u root -proot
+Get-Content db_scripts/phase1_telemetry.sql | mysql -u root -p
 ```
 
 Set your local MySQL credentials in `backend/.env`:
@@ -73,6 +69,12 @@ Set your local MySQL credentials in `backend/.env`:
 - `MYSQL_USER`
 - `MYSQL_PASSWORD`
 - `MYSQL_DATABASE`
+
+The defaults in `backend/.env.example` assume:
+- host: `localhost`
+- port: `3306`
+- user: `root`
+- database: `brain_games`
 
 If you use a DB name other than `brain_games`, update either:
 - `MYSQL_DATABASE` in `.env`, or
