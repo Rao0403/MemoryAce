@@ -15,11 +15,11 @@ export default function HomePage() {
             fast, escalating rounds. Every run is saved, and your long-term progress is visible on your dashboard.
           </p>
           <div className="hero-buttons">
-            <Link href="/games/number-memory" className="btn">
-              Start Number Memory
+            <Link href="/games/wordle" className="btn">
+              Start Wordle
             </Link>
-            <Link href="/games/verbal-memory" className="btn secondary">
-              Start Verbal Memory
+            <Link href="/games/number-memory" className="btn secondary">
+              Start Number Memory
             </Link>
             <Link href="/dashboard" className="btn ghost">
               Open Dashboard

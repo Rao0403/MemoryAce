@@ -4,6 +4,13 @@ import test from "node:test";
 import { generateNumber, getNumberMemoryScore, getRevealMs } from "../lib/game-logic/numberMemory";
 import { extendSequence, getSequenceScore, randomCell, SEQUENCE_GRID_SIZE } from "../lib/game-logic/sequenceMemory";
 import { pickNextWord, resolveVerbalGuess } from "../lib/game-logic/verbalMemory";
+import {
+  buildWordleKeyboardState,
+  evaluateWordleGuess,
+  isValidWordleGuess,
+  mergeWordleKeyboardState,
+  pickRandomWordleSolution,
+} from "../lib/game-logic/wordle";
 
 test("number memory helpers produce valid ranges", () => {
   const generated = generateNumber(6);
@@ -49,4 +56,46 @@ test("verbal memory helpers choose words and score guesses correctly", () => {
   assert.equal(wrong.errorType, "miss");
   assert.equal(wrong.nextScore, 6);
   assert.equal(wrong.nextLives, 2);
+});
+
+test("wordle helpers validate guesses and choose local solutions", () => {
+  assert.equal(pickRandomWordleSolution(0), "apple");
+  assert.equal(isValidWordleGuess("crane"), true);
+  assert.equal(isValidWordleGuess("zzzzz"), false);
+});
+
+test("wordle evaluation handles repeated letters correctly", () => {
+  const result = evaluateWordleGuess("apple", "allee");
+  assert.deepEqual(
+    result.tiles.map((tile) => tile.state),
+    ["correct", "present", "absent", "absent", "correct"],
+  );
+  assert.equal(result.isWin, false);
+});
+
+test("wordle evaluation detects wins from first through sixth guess shape", () => {
+  const firstGuessWin = evaluateWordleGuess("cigar", "cigar");
+  assert.equal(firstGuessWin.isWin, true);
+
+  const sixthGuessWin = [
+    evaluateWordleGuess("table", "crane"),
+    evaluateWordleGuess("table", "globe"),
+    evaluateWordleGuess("table", "quiet"),
+    evaluateWordleGuess("table", "novel"),
+    evaluateWordleGuess("table", "cabin"),
+    evaluateWordleGuess("table", "table"),
+  ];
+  assert.equal(sixthGuessWin[5].isWin, true);
+  assert.equal(sixthGuessWin.slice(0, 5).every((guess) => !guess.isWin), true);
+});
+
+test("wordle keyboard state keeps the strongest discovered clue", () => {
+  const first = evaluateWordleGuess("apple", "allee");
+  const second = evaluateWordleGuess("apple", "apple");
+  const merged = mergeWordleKeyboardState(buildWordleKeyboardState([first]), second);
+
+  assert.equal(merged.A, "correct");
+  assert.equal(merged.L, "correct");
+  assert.equal(merged.E, "correct");
+  assert.equal(merged.P, "correct");
 });

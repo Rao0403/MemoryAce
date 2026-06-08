@@ -1,4 +1,4 @@
-export const GAME_KEYS = ["number_memory", "sequence_memory", "verbal_memory"] as const;
+export const GAME_KEYS = ["number_memory", "sequence_memory", "verbal_memory", "wordle"] as const;
 export type GameKey = (typeof GAME_KEYS)[number];
 
 export type GameDefinition = {
@@ -34,6 +34,14 @@ export const GAME_DEFINITIONS: Record<GameKey, GameDefinition> = {
     heroTitle: "Verbal Memory",
     subtitle: "Choose whether each word is Seen or New.",
     description: "Judge each word as Seen or New. One mistake costs a life, and the stream gets trickier over time.",
+  },
+  wordle: {
+    key: "wordle",
+    label: "Wordle",
+    route: "/games/wordle",
+    heroTitle: "Wordle",
+    subtitle: "Six guesses. One five-letter answer. No wasted inputs.",
+    description: "Solve a hidden five-letter word in six tries using keyboard clues for correct, present, and absent letters.",
   },
 };
 

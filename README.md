@@ -25,6 +25,11 @@ A full-stack brain-game platform inspired by Human Benchmark, with a more cinema
 - 3 lives per run
 - On game over, score is saved
 
+4. Wordle
+- One five-letter word per run
+- Up to 6 guesses
+- Score is 1 for a solve and 0 for a fail
+
 ## Data Stored
 
 Each run stores a score attempt in MySQL.
@@ -132,6 +137,7 @@ Allowed game keys:
 - `number_memory`
 - `sequence_memory`
 - `verbal_memory`
+- `wordle`
 
 ## Next Additions
 
