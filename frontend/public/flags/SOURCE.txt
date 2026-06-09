@@ -1,0 +1,2 @@
+Flag SVGs vendored from flag-icons v7.5.0 (https://flagicons.lipis.dev/), MIT License.
+Country names and alias seeds assembled from REST Countries v3.1 as a one-time source and curated for this local game.

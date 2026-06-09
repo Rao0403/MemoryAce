@@ -647,6 +647,106 @@ input {
   min-height: unset;
 }
 
+.flag-stage {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.flag-toolbar {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.85rem 0.95rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+    rgba(7, 17, 26, 0.88);
+  backdrop-filter: blur(14px);
+}
+
+.flag-toolbar-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.flag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  gap: 0.95rem;
+}
+
+.flag-card {
+  height: 100%;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 54%),
+    rgba(255, 255, 255, 0.03);
+}
+
+.flag-card.is-correct {
+  border-color: rgba(52, 211, 153, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.2);
+}
+
+.flag-card.is-incorrect {
+  border-color: rgba(255, 114, 71, 0.44);
+  box-shadow: inset 0 0 0 1px rgba(255, 114, 71, 0.18);
+}
+
+.flag-image-wrap {
+  overflow: hidden;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 40%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.flag-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.flag-entry-input {
+  text-align: center;
+}
+
+.flag-result-block {
+  display: grid;
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.flag-result-label,
+.flag-answer-preview,
+.flag-correct-answer {
+  margin: 0;
+}
+
+.flag-result-label.is-correct {
+  color: #6ee7b7;
+}
+
+.flag-result-label.is-incorrect,
+.flag-correct-answer {
+  color: #fca5a5;
+}
+
+.flag-answer-preview {
+  color: var(--ink-muted);
+}
+
 .face-name-setup,
 .face-name-stage {
   display: grid;
@@ -820,7 +920,8 @@ input {
   .input-row,
   .hero-buttons,
   .header-actions,
-  .verbal-actions {
+  .verbal-actions,
+  .flag-toolbar {
     flex-direction: column;
     align-items: stretch;
   }
@@ -857,10 +958,15 @@ input {
   .face-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .flag-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 520px) {
-  .face-grid {
+  .face-grid,
+  .flag-grid {
     grid-template-columns: 1fr;
   }
 }

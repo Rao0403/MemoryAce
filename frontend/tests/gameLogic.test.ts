@@ -18,6 +18,13 @@ import {
   mergeWordleKeyboardState,
   pickRandomWordleSolution,
 } from "../lib/game-logic/wordle";
+import {
+  buildFlagAliasMap,
+  createFlagRound,
+  evaluateFlagRound,
+  FLAG_COUNTRY_COUNT,
+  normalizeFlagAnswer,
+} from "../lib/game-logic/guessTheFlag";
 
 test("number memory helpers produce valid ranges", () => {
   const generated = generateNumber(6);
@@ -176,4 +183,87 @@ test("face-name scoring counts correct answers and preserves recall order", () =
       { faceId: "female-02", recallIndex: 3, isCorrect: true },
     ],
   );
+});
+
+test("flag manifest and round generation keep a full unique sovereign-country set", () => {
+  const round = createFlagRound(() => 0.25);
+  assert.equal(round.length, FLAG_COUNTRY_COUNT);
+  assert.equal(round.length, 194);
+  assert.equal(new Set(round.map((entry) => entry.country.id)).size, FLAG_COUNTRY_COUNT);
+});
+
+test("flag round shuffle changes order but preserves membership", () => {
+  const stableRound = createFlagRound(() => 0);
+  const shuffledRound = createFlagRound(() => 0.9);
+
+  assert.notDeepEqual(
+    stableRound.slice(0, 10).map((entry) => entry.country.id),
+    shuffledRound.slice(0, 10).map((entry) => entry.country.id),
+  );
+  assert.deepEqual(
+    [...stableRound.map((entry) => entry.country.id)].sort(),
+    [...shuffledRound.map((entry) => entry.country.id)].sort(),
+  );
+});
+
+test("flag answer normalization trims and collapses spaces", () => {
+  assert.equal(normalizeFlagAnswer("  United   States "), "united states");
+  assert.equal(normalizeFlagAnswer("South   Korea"), "south korea");
+});
+
+test("flag alias matching accepts curated common variants", () => {
+  const round = createFlagRound(() => 0);
+  const countries = Object.fromEntries(round.map((entry) => [entry.country.id, entry]));
+
+  const evaluation = evaluateFlagRound(
+    [countries.us, countries.cz, countries.sz, countries.kr],
+    {
+      us: "USA",
+      cz: "Czech Republic",
+      sz: "Swaziland",
+      kr: "Republic of Korea",
+    },
+  );
+
+  assert.equal(evaluation.totalCorrect, 4);
+  assert.equal(evaluation.results.every((result) => result.isCorrect), true);
+  assert.equal(evaluation.results.filter((result) => result.acceptedViaAlias).length, 4);
+});
+
+test("flag scoring rejects non-alias mismatches and counts totals correctly", () => {
+  const round = createFlagRound(() => 0);
+  const countries = Object.fromEntries(round.map((entry) => [entry.country.id, entry]));
+
+  const evaluation = evaluateFlagRound(
+    [countries.us, countries.jp, countries.br],
+    {
+      us: "United States",
+      jp: "Tokyo",
+      br: "Argentina",
+    },
+  );
+
+  assert.equal(evaluation.totalCorrect, 1);
+  assert.deepEqual(
+    evaluation.results.map((result) => ({
+      countryId: result.countryId,
+      isCorrect: result.isCorrect,
+    })),
+    [
+      { countryId: "us", isCorrect: true },
+      { countryId: "jp", isCorrect: false },
+      { countryId: "br", isCorrect: false },
+    ],
+  );
+});
+
+test("flag alias maps contain normalized accepted answers", () => {
+  const round = createFlagRound(() => 0);
+  const unitedStates = round.find((entry) => entry.country.id === "us");
+  assert.ok(unitedStates);
+
+  const aliasMap = buildFlagAliasMap(unitedStates.country);
+  assert.equal(aliasMap["united states"], true);
+  assert.equal(aliasMap["usa"], true);
+  assert.equal(aliasMap["canada"], undefined);
 });

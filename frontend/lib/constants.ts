@@ -1,4 +1,4 @@
-export const GAME_KEYS = ["number_memory", "sequence_memory", "verbal_memory", "wordle", "face_name_memory"] as const;
+export const GAME_KEYS = ["number_memory", "sequence_memory", "verbal_memory", "wordle", "face_name_memory", "guess_the_flag"] as const;
 export type GameKey = (typeof GAME_KEYS)[number];
 
 export type GameDefinition = {
@@ -50,6 +50,14 @@ export const GAME_DEFINITIONS: Record<GameKey, GameDefinition> = {
     heroTitle: "Face + Name Memory",
     subtitle: "Study a grid of faces, then type every name from memory.",
     description: "Choose how many faces to memorize, study the grid, then recall each first name in a full answer form.",
+  },
+  guess_the_flag: {
+    key: "guess_the_flag",
+    label: "Guess the Flag",
+    route: "/games/guess-the-flag",
+    heroTitle: "Guess the Flag",
+    subtitle: "A full world grid. One pass. Name every country you can.",
+    description: "Work through a randomized full-world flag grid, type each country name, and score by total correct answers.",
   },
 };
 

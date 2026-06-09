@@ -330,6 +330,13 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(wordle.status_code, 200)
         self.assertEqual(wordle.json()["high_score"], 1)
 
+        flags = self.client.post(
+            "/api/scores",
+            json={"player_name": "Aryan", "game": "guess_the_flag", "score": 132},
+        )
+        self.assertEqual(flags.status_code, 200)
+        self.assertEqual(flags.json()["high_score"], 132)
+
         stats = self.client.get("/api/scores/number_memory/Aryan")
         self.assertEqual(stats.status_code, 200)
         self.assertEqual(stats.json()["attempts"], 2)
@@ -347,10 +354,11 @@ class ApiSmokeTests(unittest.TestCase):
         dashboard = self.client.get("/api/dashboard/Aryan")
         self.assertEqual(dashboard.status_code, 200)
         payload = dashboard.json()
-        self.assertEqual(payload["total_attempts"], 3)
-        self.assertEqual(payload["games_played"], 2)
+        self.assertEqual(payload["total_attempts"], 4)
+        self.assertEqual(payload["games_played"], 3)
         games = {row["game"]: row for row in payload["games"]}
         self.assertEqual(games["wordle"]["high_score"], 1)
+        self.assertEqual(games["guess_the_flag"]["high_score"], 132)
 
         invalid = self.client.get("/api/leaderboard/not_a_game")
         self.assertEqual(invalid.status_code, 400)
@@ -497,6 +505,57 @@ class ApiSmokeTests(unittest.TestCase):
         end = self.client.post(
             f"/api/runs/{run_id}/end",
             json={"final_score": 7, "total_trials": 10, "end_reason": "completed"},
+        )
+        self.assertEqual(end.status_code, 200)
+        self.assertEqual(end.json()["run_status"], "completed")
+
+    def test_guess_the_flag_is_accepted(self) -> None:
+        score = self.client.post(
+            "/api/scores",
+            json={"player_name": "Aryan", "game": "guess_the_flag", "score": 144},
+        )
+        self.assertEqual(score.status_code, 200)
+        self.assertEqual(score.json()["high_score"], 144)
+
+        run = self.client.post(
+            "/api/runs/start",
+            json={"player_name": "Aryan", "game": "guess_the_flag", "event_schema_version": 1},
+        )
+        self.assertEqual(run.status_code, 200)
+        run_id = run.json()["run_id"]
+
+        batch = self.client.post(
+            f"/api/runs/{run_id}/events/batch",
+            json={
+                "events": [
+                    {
+                        "trial_index": 1,
+                        "event_name": "flag_guessed",
+                        "difficulty_level": 194,
+                        "reaction_ms": 5100,
+                        "correct": True,
+                        "score_before": 0,
+                        "score_after": 1,
+                        "event_payload": {
+                            "country_id": "us",
+                            "alpha2_code": "US",
+                            "display_name": "United States",
+                            "typed_answer": "USA",
+                            "normalized_answer": "usa",
+                            "is_correct": True,
+                            "accepted_via_alias": True,
+                            "recall_index": 1,
+                            "total_countries": 194,
+                        },
+                    }
+                ]
+            },
+        )
+        self.assertEqual(batch.status_code, 200)
+
+        end = self.client.post(
+            f"/api/runs/{run_id}/end",
+            json={"final_score": 144, "total_trials": 194, "end_reason": "completed"},
         )
         self.assertEqual(end.status_code, 200)
         self.assertEqual(end.json()["run_status"], "completed")
