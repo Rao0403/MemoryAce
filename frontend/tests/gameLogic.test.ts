@@ -5,6 +5,13 @@ import { generateNumber, getNumberMemoryScore, getRevealMs } from "../lib/game-l
 import { extendSequence, getSequenceScore, randomCell, SEQUENCE_GRID_SIZE } from "../lib/game-logic/sequenceMemory";
 import { pickNextWord, resolveVerbalGuess } from "../lib/game-logic/verbalMemory";
 import {
+  createFaceNameRound,
+  evaluateFaceNameRound,
+  FEMALE_FIRST_NAMES,
+  MALE_FIRST_NAMES,
+  normalizeFaceNameAnswer,
+} from "../lib/game-logic/faceNameMemory";
+import {
   buildWordleKeyboardState,
   evaluateWordleGuess,
   isValidWordleGuess,
@@ -98,4 +105,75 @@ test("wordle keyboard state keeps the strongest discovered clue", () => {
   assert.equal(merged.L, "correct");
   assert.equal(merged.E, "correct");
   assert.equal(merged.P, "correct");
+});
+
+test("face-name round generation keeps unique faces, unique names, and gender-compatible assignment", () => {
+  const values = [0.02, 0.38, 0.74, 0.15, 0.91, 0.44, 0.61, 0.27, 0.82, 0.09, 0.53, 0.69];
+  let index = 0;
+  const round = createFaceNameRound(8, () => {
+    const value = values[index % values.length];
+    index += 1;
+    return value;
+  });
+
+  assert.equal(round.prompts.length, 8);
+  assert.equal(new Set(round.prompts.map((prompt) => prompt.face.id)).size, 8);
+  assert.equal(new Set(round.prompts.map((prompt) => prompt.assignedName)).size, 8);
+  assert.equal(round.prompts.every((prompt) => prompt.recallIndex >= 1), true);
+
+  for (const prompt of round.prompts) {
+    if (prompt.face.gender === "female") {
+      assert.equal(FEMALE_FIRST_NAMES.includes(prompt.assignedName), true);
+    } else {
+      assert.equal(MALE_FIRST_NAMES.includes(prompt.assignedName), true);
+    }
+  }
+});
+
+test("face-name answer normalization is trimmed and case-insensitive exact match", () => {
+  assert.equal(normalizeFaceNameAnswer("  Ava "), "ava");
+  assert.equal(normalizeFaceNameAnswer("NoAH"), "noah");
+});
+
+test("face-name scoring counts correct answers and preserves recall order", () => {
+  const round = {
+    faceCount: 3,
+    prompts: [
+      {
+        face: { id: "female-01", imagePath: "/faces/female-01.svg", gender: "female" as const },
+        assignedName: "Ava",
+        recallIndex: 1,
+      },
+      {
+        face: { id: "male-01", imagePath: "/faces/male-01.svg", gender: "male" as const },
+        assignedName: "Liam",
+        recallIndex: 2,
+      },
+      {
+        face: { id: "female-02", imagePath: "/faces/female-02.svg", gender: "female" as const },
+        assignedName: "Mia",
+        recallIndex: 3,
+      },
+    ],
+  };
+
+  const evaluation = evaluateFaceNameRound(round, {
+    "female-01": " ava ",
+    "male-01": "Noah",
+    "female-02": "MIA",
+  });
+
+  assert.equal(evaluation.totalCorrect, 2);
+  assert.deepEqual(
+    evaluation.results.map((result) => ({
+      faceId: result.faceId,
+      recallIndex: result.recallIndex,
+      isCorrect: result.isCorrect,
+    })),
+    [
+      { faceId: "female-01", recallIndex: 1, isCorrect: true },
+      { faceId: "male-01", recallIndex: 2, isCorrect: false },
+      { faceId: "female-02", recallIndex: 3, isCorrect: true },
+    ],
+  );
 });

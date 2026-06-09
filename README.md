@@ -30,6 +30,11 @@ A full-stack brain-game platform inspired by Human Benchmark, with a more cinema
 - Up to 6 guesses
 - Score is 1 for a solve and 0 for a fail
 
+5. Face + Name Memory
+- Choose how many faces to memorize, up to 30
+- Study a face-name grid, then type every first name from memory
+- Score equals the number of correctly recalled names
+
 ## Data Stored
 
 Each run stores a score attempt in MySQL.
@@ -138,6 +143,7 @@ Allowed game keys:
 - `sequence_memory`
 - `verbal_memory`
 - `wordle`
+- `face_name_memory`
 
 ## Next Additions
 

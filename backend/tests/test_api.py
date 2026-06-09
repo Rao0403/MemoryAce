@@ -452,6 +452,55 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(end.status_code, 200)
         self.assertEqual(end.json()["run_status"], "completed")
 
+    def test_face_name_memory_is_accepted(self) -> None:
+        score = self.client.post(
+            "/api/scores",
+            json={"player_name": "Aryan", "game": "face_name_memory", "score": 7},
+        )
+        self.assertEqual(score.status_code, 200)
+        self.assertEqual(score.json()["high_score"], 7)
+
+        run = self.client.post(
+            "/api/runs/start",
+            json={"player_name": "Aryan", "game": "face_name_memory", "event_schema_version": 1},
+        )
+        self.assertEqual(run.status_code, 200)
+        run_id = run.json()["run_id"]
+
+        batch = self.client.post(
+            f"/api/runs/{run_id}/events/batch",
+            json={
+                "events": [
+                    {
+                        "trial_index": 1,
+                        "event_name": "name_recalled",
+                        "difficulty_level": 10,
+                        "reaction_ms": 2400,
+                        "correct": True,
+                        "score_before": 0,
+                        "score_after": 1,
+                        "event_payload": {
+                            "face_id": "female-01",
+                            "face_gender": "female",
+                            "assigned_name": "Ava",
+                            "typed_name": "Ava",
+                            "selected_face_count": 10,
+                            "recall_index": 1,
+                            "is_correct": True,
+                        },
+                    }
+                ]
+            },
+        )
+        self.assertEqual(batch.status_code, 200)
+
+        end = self.client.post(
+            f"/api/runs/{run_id}/end",
+            json={"final_score": 7, "total_trials": 10, "end_reason": "completed"},
+        )
+        self.assertEqual(end.status_code, 200)
+        self.assertEqual(end.json()["run_status"], "completed")
+
 
 if __name__ == "__main__":
     unittest.main()

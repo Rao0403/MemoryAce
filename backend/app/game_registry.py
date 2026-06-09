@@ -1,4 +1,4 @@
-ALLOWED_GAMES = ("number_memory", "sequence_memory", "verbal_memory", "wordle")
+ALLOWED_GAMES = ("number_memory", "sequence_memory", "verbal_memory", "wordle", "face_name_memory")
 
 
 def normalize_game_key(value: str) -> str:
