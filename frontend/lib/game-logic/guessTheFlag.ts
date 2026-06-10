@@ -26,6 +26,11 @@ export type FlagGameSummary = {
   results: FlagAnswerResult[];
 };
 
+export type FlagScoreSummary = {
+  elapsedSeconds: number;
+  speedScore: number;
+};
+
 export function normalizeFlagAnswer(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -53,33 +58,42 @@ export function createFlagRound(randomValue: () => number = Math.random): FlagRo
   }));
 }
 
+export function evaluateFlagAnswer(entry: FlagRoundEntry, typedAnswer: string): FlagAnswerResult {
+  const normalizedAnswer = normalizeFlagAnswer(typedAnswer);
+  const normalizedDisplayName = normalizeFlagAnswer(entry.country.displayName);
+  const aliasMap = buildFlagAliasMap(entry.country);
+  const isCorrect = normalizedAnswer.length > 0 && Boolean(aliasMap[normalizedAnswer]);
+  const acceptedViaAlias = isCorrect && normalizedAnswer !== normalizedDisplayName;
+
+  return {
+    countryId: entry.country.id,
+    alpha2Code: entry.country.alpha2Code,
+    displayName: entry.country.displayName,
+    typedAnswer,
+    normalizedAnswer,
+    recallIndex: entry.recallIndex,
+    isCorrect,
+    acceptedViaAlias,
+  } satisfies FlagAnswerResult;
+}
+
 export function evaluateFlagRound(
   round: FlagRoundEntry[],
   answers: Record<string, string>,
 ): FlagGameSummary {
-  const results = round.map((entry) => {
-    const typedAnswer = answers[entry.country.id] ?? "";
-    const normalizedAnswer = normalizeFlagAnswer(typedAnswer);
-    const normalizedDisplayName = normalizeFlagAnswer(entry.country.displayName);
-    const aliasMap = buildFlagAliasMap(entry.country);
-    const isCorrect = normalizedAnswer.length > 0 && Boolean(aliasMap[normalizedAnswer]);
-    const acceptedViaAlias = isCorrect && normalizedAnswer !== normalizedDisplayName;
-
-    return {
-      countryId: entry.country.id,
-      alpha2Code: entry.country.alpha2Code,
-      displayName: entry.country.displayName,
-      typedAnswer,
-      normalizedAnswer,
-      recallIndex: entry.recallIndex,
-      isCorrect,
-      acceptedViaAlias,
-    } satisfies FlagAnswerResult;
-  });
+  const results = round.map((entry) => evaluateFlagAnswer(entry, answers[entry.country.id] ?? ""));
 
   return {
     totalCountries: round.length,
     totalCorrect: results.filter((result) => result.isCorrect).length,
     results,
+  };
+}
+
+export function computeFlagSpeedScore(totalCorrect: number, elapsedMs: number): FlagScoreSummary {
+  const elapsedSeconds = Math.max(1, Math.round(elapsedMs / 1000));
+  return {
+    elapsedSeconds,
+    speedScore: Math.round((totalCorrect / elapsedSeconds) * 1000),
   };
 }

@@ -20,7 +20,9 @@ import {
 } from "../lib/game-logic/wordle";
 import {
   buildFlagAliasMap,
+  computeFlagSpeedScore,
   createFlagRound,
+  evaluateFlagAnswer,
   evaluateFlagRound,
   FLAG_COUNTRY_COUNT,
   normalizeFlagAnswer,
@@ -211,6 +213,19 @@ test("flag answer normalization trims and collapses spaces", () => {
   assert.equal(normalizeFlagAnswer("South   Korea"), "south korea");
 });
 
+test("flag single-answer evaluation supports per-card submission", () => {
+  const round = createFlagRound(() => 0);
+  const france = round.find((entry) => entry.country.id === "fr");
+  assert.ok(france);
+
+  const correct = evaluateFlagAnswer(france, "France");
+  const wrong = evaluateFlagAnswer(france, "Paris");
+
+  assert.equal(correct.isCorrect, true);
+  assert.equal(wrong.isCorrect, false);
+  assert.equal(correct.recallIndex >= 1, true);
+});
+
 test("flag alias matching accepts curated common variants", () => {
   const round = createFlagRound(() => 0);
   const countries = Object.fromEntries(round.map((entry) => [entry.country.id, entry]));
@@ -266,4 +281,15 @@ test("flag alias maps contain normalized accepted answers", () => {
   assert.equal(aliasMap["united states"], true);
   assert.equal(aliasMap["usa"], true);
   assert.equal(aliasMap["canada"], undefined);
+});
+
+test("flag speed score scales correct answers by elapsed seconds", () => {
+  assert.deepEqual(computeFlagSpeedScore(50, 100_000), {
+    elapsedSeconds: 100,
+    speedScore: 500,
+  });
+  assert.deepEqual(computeFlagSpeedScore(0, 9_000), {
+    elapsedSeconds: 9,
+    speedScore: 0,
+  });
 });
